@@ -2,17 +2,15 @@ require('dotenv').config();
 
 const app = require('./app');
 const pool = require('./config/db');
-const initDb = require('./config/init-db');
 
 const PORT = process.env.PORT || 5000;
 
 // Test database connection and initialize tables
-pool.query('SELECT NOW()', async (err, res) => {
+pool.query('SELECT NOW()', (err, res) => {
     if (err) {
         console.error('Database connection error:', err.message);
     } else {
         console.log('Database connected successfully');
-        await initDb();
     }
 });
 
