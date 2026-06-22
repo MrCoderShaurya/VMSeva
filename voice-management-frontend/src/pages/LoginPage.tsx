@@ -28,7 +28,7 @@ export const LoginPage: React.FC = () => {
     setLoading(true);
     try {
       const response = await client.post('/auth/login', { email, password });
-      const { token: newToken, user: userData } = response.data;
+      const { token: newToken } = response.data;
       if (rememberMe) {
         localStorage.setItem('token', newToken);
       } else {

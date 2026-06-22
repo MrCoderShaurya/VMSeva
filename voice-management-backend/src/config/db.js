@@ -12,7 +12,7 @@ const pool = new Pool({
     database: !process.env.DATABASE_URL ? (process.env.DB_NAME || 'postgres') : undefined,
     
     // Render requires SSL for cloud connections but it must be disabled for local development
-    ssl: isProduction ? { rejectUnauthorized: true } : false
+    ssl: isProduction ? { rejectUnauthorized: false } : false
 });
 
 module.exports = pool;
