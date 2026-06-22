@@ -10,12 +10,12 @@ import { Eye, EyeOff } from 'lucide-react';
 
 export const ForgotPasswordPage: React.FC = () => {
   const [email, setEmail] = useState('');
-  const [token, setToken] = useState('');
+  const [otp, setOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [step, setStep] = useState<'request' | 'reset'>('request');
+  const [step, setStep] = useState<'request' | 'verify' | 'reset'>('request');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
@@ -32,14 +32,28 @@ export const ForgotPasswordPage: React.FC = () => {
   const handleRequest = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) return;
-
     setLoading(true);
     try {
       await client.post('/auth/forgot-password', { email });
-      toast.success('If that email is registered, a reset code has been sent. Check your email.');
+      toast.success('OTP sent to your email. Check your inbox.');
+      setStep('verify');
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Failed to send OTP');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!otp) return;
+    setLoading(true);
+    try {
+      await client.post('/auth/verify-reset-otp', { email, otp });
+      toast.success('OTP verified! Set your new password.');
       setStep('reset');
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Failed to request password reset');
+      toast.error(error.response?.data?.message || 'Invalid or expired OTP');
     } finally {
       setLoading(false);
     }
@@ -47,7 +61,7 @@ export const ForgotPasswordPage: React.FC = () => {
 
   const handleReset = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!token || !newPassword || !confirmPassword) {
+    if (!otp || !newPassword || !confirmPassword) {
       toast.error('All fields are required');
       return;
     }
@@ -59,11 +73,10 @@ export const ForgotPasswordPage: React.FC = () => {
       toast.error('Password does not meet all requirements');
       return;
     }
-
     setLoading(true);
     try {
-      await client.post('/auth/reset-password', { token, newPassword });
-      toast.success('Password reset successfully! Please login with your new password.');
+      await client.post('/auth/reset-password', { email, otp, newPassword });
+      toast.success('Password reset successfully! Please login.');
       navigate('/login');
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to reset password');
@@ -78,9 +91,9 @@ export const ForgotPasswordPage: React.FC = () => {
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold tracking-tight text-center">Reset Password</CardTitle>
           <CardDescription className="text-center text-muted-foreground">
-            {step === 'request'
-              ? 'Enter your email address to receive reset instructions'
-              : 'Enter the OTP you received by email and your new password'}
+            {step === 'request' ? 'Enter your email address to receive a reset OTP'
+            : step === 'verify' ? `Enter the 6-digit OTP sent to ${email}`
+            : 'Set your new password'}
           </CardDescription>
         </CardHeader>
         {step === 'request' ? (
@@ -109,17 +122,41 @@ export const ForgotPasswordPage: React.FC = () => {
               </div>
             </CardFooter>
           </form>
+        ) : step === 'verify' ? (
+          <form onSubmit={handleVerifyOtp}>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="otp">OTP Code</Label>
+                <Input
+                  id="otp"
+                  type="text"
+                  placeholder="Enter 6-digit OTP"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value)}
+                  required
+                />
+              </div>
+            </CardContent>
+            <CardFooter className="flex flex-col space-y-4">
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? 'Verifying...' : 'Verify OTP'}
+              </Button>
+              <button type="button" onClick={() => setStep('request')} className="text-xs text-primary hover:underline cursor-pointer">
+                Back
+              </button>
+            </CardFooter>
+          </form>
         ) : (
           <form onSubmit={handleReset}>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="token">Reset Code (OTP)</Label>
+                <Label htmlFor="otp-reset">OTP Code</Label>
                 <Input
-                  id="token"
+                  id="otp-reset"
                   type="text"
-                  placeholder="Enter the 6-digit code from email"
-                  value={token}
-                  onChange={(e) => setToken(e.target.value)}
+                  placeholder="Enter 6-digit OTP"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value)}
                   required
                 />
               </div>
