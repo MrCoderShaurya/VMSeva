@@ -150,17 +150,6 @@ export const ForgotPasswordPage: React.FC = () => {
           <form onSubmit={handleReset}>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="otp-reset">OTP Code</Label>
-                <Input
-                  id="otp-reset"
-                  type="text"
-                  placeholder="Enter 6-digit OTP"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
                 <Label htmlFor="newPassword">New Password</Label>
                 <div className="relative">
                   <Input

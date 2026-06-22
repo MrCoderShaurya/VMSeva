@@ -1,4 +1,5 @@
 const authService = require('../services/auth.service');
+const resetPasswordService = require('../services/reset-password.service');
 
 const handleError = (res, err) => {
     const status = err.status || 500;
@@ -57,12 +58,40 @@ const changePassword = async (req, res) => {
     }
 };
 
+const sendEmailOtp = async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) {
+            return res.status(400).json({ error: 'Email is required' });
+        }
+        const otp = await authService.sendEmailOtp(email);
+        const response = { message: 'OTP sent to your email' };
+        if (otp) response.otp = otp; // only in non-production
+        res.json(response);
+    } catch (err) {
+        handleError(res, err);
+    }
+};
+
+const verifyEmailOtp = async (req, res) => {
+    try {
+        const { email, otp } = req.body;
+        if (!email || !otp) {
+            return res.status(400).json({ error: 'Email and OTP are required' });
+        }
+        await authService.verifyEmailOtp(email, otp);
+        res.json({ message: 'Email verified successfully' });
+    } catch (err) {
+        handleError(res, err);
+    }
+};
+
 const forgotPassword = async (req, res) => {
     try {
         const { email } = req.body;
         if (!email) return res.status(400).json({ error: 'Email is required' });
-        await authService.forgotPassword(email);
-        res.json({ message: 'If that email is registered, a reset code has been sent. Check your email.' });
+        await resetPasswordService.forgotPassword(email);
+        res.json({ message: 'If that email exists, a reset code has been sent' });
     } catch (err) {
         handleError(res, err);
     }
@@ -72,8 +101,8 @@ const verifyResetOtp = async (req, res) => {
     try {
         const { email, otp } = req.body;
         if (!email || !otp) return res.status(400).json({ error: 'Email and OTP are required' });
-        await authService.verifyResetOtp(email, otp);
-        res.json({ message: 'OTP verified. You may now reset your password.' });
+        await resetPasswordService.verifyResetOtp(email, otp);
+        res.json({ message: 'OTP verified' });
     } catch (err) {
         handleError(res, err);
     }
@@ -82,39 +111,12 @@ const verifyResetOtp = async (req, res) => {
 const resetPassword = async (req, res) => {
     try {
         const { email, otp, newPassword } = req.body;
-        if (!email || !otp || !newPassword) {
-            return res.status(400).json({ error: 'email, otp and newPassword are required' });
-        }
-        await authService.resetPassword(email, otp, newPassword);
+        if (!email || !otp || !newPassword) return res.status(400).json({ error: 'email, otp, and newPassword are required' });
+        await resetPasswordService.resetPassword(email, otp, newPassword);
         res.json({ message: 'Password reset successfully' });
     } catch (err) {
         handleError(res, err);
     }
 };
 
-const sendEmailOtp = async (req, res) => {
-    try {
-        const { email } = req.body;
-        if (!email) return res.status(400).json({ error: 'Email is required' });
-        const otp = await authService.sendEmailOtp(email);
-        res.json({
-            message: 'OTP sent to email',
-            ...(process.env.NODE_ENV !== 'production' && otp ? { otp } : {})
-        });
-    } catch (err) {
-        handleError(res, err);
-    }
-};
-
-const verifyEmailOtp = async (req, res) => {
-    try {
-        const { email, otp } = req.body;
-        if (!email || !otp) return res.status(400).json({ error: 'Email and OTP are required' });
-        await authService.verifyEmailOtp(email, otp);
-        res.json({ message: 'Email verified successfully' });
-    } catch (err) {
-        handleError(res, err);
-    }
-};
-
-module.exports = { register, login, getMe, changePassword, forgotPassword, verifyResetOtp, resetPassword, sendEmailOtp, verifyEmailOtp };
+module.exports = { register, login, getMe, changePassword, sendEmailOtp, verifyEmailOtp, forgotPassword, verifyResetOtp, resetPassword };

@@ -110,7 +110,7 @@ export const UsersPage: React.FC = () => {
 
     setActionLoading(true);
     try {
-      await client.post('/auth/register', { email: formEmail, password: formPassword });
+      await client.post('/users', { email: formEmail, password: formPassword });
       toast.success('User created successfully!');
       setIsCreateOpen(false);
       setFormEmail('');
@@ -161,7 +161,23 @@ export const UsersPage: React.FC = () => {
         await client.post(`/users/${userId}/roles`, { roleId });
         toast.success('Role assigned');
       }
-      fetchUsers();
+      // Update currentUser roles state immediately so the dialog reflects the change
+      setCurrentUser((prev: any) => {
+        if (!prev || prev.id !== userId) return prev;
+        const updatedRoles = hasRole
+          ? prev.roles.filter((r: any) => r.id !== roleId)
+          : [...prev.roles, rolesList.find((r) => r.id === roleId)];
+        return { ...prev, roles: updatedRoles };
+      });
+      setUsers((prev) =>
+        prev.map((u) => {
+          if (u.id !== userId) return u;
+          const updatedRoles = hasRole
+            ? u.roles.filter((r: any) => r.id !== roleId)
+            : [...u.roles, rolesList.find((r) => r.id === roleId)];
+          return { ...u, roles: updatedRoles };
+        })
+      );
     } catch (err: any) {
       toast.error('Failed to modify user roles');
     }

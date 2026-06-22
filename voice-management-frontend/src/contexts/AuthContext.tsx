@@ -48,7 +48,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       sessionStorage.setItem('token', newToken);
     }
     setToken(newToken);
-    await refreshUser();
+    try {
+      await refreshUser();
+    } catch {
+      // token stored, user will be fetched on next request
+    }
   };
 
   useEffect(() => {

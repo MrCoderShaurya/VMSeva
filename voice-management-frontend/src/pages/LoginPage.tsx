@@ -28,11 +28,17 @@ export const LoginPage: React.FC = () => {
     setLoading(true);
     try {
       const response = await client.post('/auth/login', { email, password });
-      await login(response.data.token, rememberMe);
+      const { token: newToken, user: userData } = response.data;
+      if (rememberMe) {
+        localStorage.setItem('token', newToken);
+      } else {
+        sessionStorage.setItem('token', newToken);
+      }
+      await login(newToken, rememberMe);
       toast.success('Login successful!');
       navigate('/dashboard');
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Invalid email or password');
+      toast.error(error.response?.data?.message || error.response?.data?.error || 'Invalid email or password');
     } finally {
       setLoading(false);
     }

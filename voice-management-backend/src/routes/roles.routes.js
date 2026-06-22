@@ -27,7 +27,7 @@ router.post('/', authenticateToken, requireAdmin, async (req, res) => {
         );
         res.status(201).json(result.rows[0]);
     } catch (error) {
-        if (error.constraint === 'unique_role_name') {
+        if (error.code === '23505') {
             return res.status(409).json({ error: 'Role already exists' });
         }
         res.status(500).json({ error: error.message });
@@ -50,7 +50,7 @@ router.put('/:id', authenticateToken, requireAdmin, async (req, res) => {
         }
         res.json(result.rows[0]);
     } catch (error) {
-        if (error.constraint === 'unique_role_name') {
+        if (error.code === '23505') {
             return res.status(409).json({ error: 'Role name already exists' });
         }
         res.status(500).json({ error: error.message });
