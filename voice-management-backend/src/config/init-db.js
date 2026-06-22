@@ -5,14 +5,26 @@ const initDb = async () => {
         await pool.query(`
             CREATE TABLE IF NOT EXISTS users (
                 id SERIAL PRIMARY KEY,
-                name TEXT NOT NULL,
                 email TEXT UNIQUE NOT NULL,
-                password TEXT,
-                role TEXT DEFAULT 'user',
-                is_verified BOOLEAN DEFAULT FALSE,
+                password_hash TEXT,
+                is_active BOOLEAN DEFAULT TRUE,
                 created_at TIMESTAMPTZ DEFAULT NOW()
             )
         `);
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS roles (
+                id SERIAL PRIMARY KEY,
+                role_name TEXT UNIQUE NOT NULL
+            )
+        `);
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS user_roles (
+                user_id INT REFERENCES users(id) ON DELETE CASCADE,
+                role_id INT REFERENCES roles(id) ON DELETE CASCADE,
+                PRIMARY KEY (user_id, role_id)
+            )
+        `);
+        await pool.query(`INSERT INTO roles (role_name) VALUES ('admin'), ('user') ON CONFLICT DO NOTHING`);
         await pool.query(`
             CREATE TABLE IF NOT EXISTS password_resets (
                 id SERIAL PRIMARY KEY,

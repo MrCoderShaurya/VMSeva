@@ -61,12 +61,19 @@ const forgotPassword = async (req, res) => {
     try {
         const { email } = req.body;
         if (!email) return res.status(400).json({ error: 'Email is required' });
-        const token = await authService.forgotPassword(email);
-        res.json({
-            message: 'If that email is registered, a reset link has been sent.',
-            // Only expose reset token outside production (for dev/testing convenience)
-            ...(process.env.NODE_ENV !== 'production' && token ? { resetToken: token } : {})
-        });
+        await authService.forgotPassword(email);
+        res.json({ message: 'If that email is registered, a reset code has been sent. Check your email.' });
+    } catch (err) {
+        handleError(res, err);
+    }
+};
+
+const verifyResetOtp = async (req, res) => {
+    try {
+        const { email, otp } = req.body;
+        if (!email || !otp) return res.status(400).json({ error: 'Email and OTP are required' });
+        await authService.verifyResetOtp(email, otp);
+        res.json({ message: 'OTP verified. You may now reset your password.' });
     } catch (err) {
         handleError(res, err);
     }
@@ -74,11 +81,11 @@ const forgotPassword = async (req, res) => {
 
 const resetPassword = async (req, res) => {
     try {
-        const { token, newPassword } = req.body;
-        if (!token || !newPassword) {
-            return res.status(400).json({ error: 'token and newPassword are required' });
+        const { email, otp, newPassword } = req.body;
+        if (!email || !otp || !newPassword) {
+            return res.status(400).json({ error: 'email, otp and newPassword are required' });
         }
-        await authService.resetPassword(token, newPassword);
+        await authService.resetPassword(email, otp, newPassword);
         res.json({ message: 'Password reset successfully' });
     } catch (err) {
         handleError(res, err);
@@ -110,4 +117,4 @@ const verifyEmailOtp = async (req, res) => {
     }
 };
 
-module.exports = { register, login, getMe, changePassword, forgotPassword, resetPassword, sendEmailOtp, verifyEmailOtp };
+module.exports = { register, login, getMe, changePassword, forgotPassword, verifyResetOtp, resetPassword, sendEmailOtp, verifyEmailOtp };
