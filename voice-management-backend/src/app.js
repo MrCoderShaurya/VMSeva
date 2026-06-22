@@ -8,6 +8,9 @@ const rolesRoutes = require('./routes/roles.routes');
 
 const app = express();
 
+// Trust Render's proxy
+app.set('trust proxy', 1);
+
 // Security headers
 app.use(helmet());
 
@@ -24,6 +27,7 @@ const ALLOWED_ORIGINS = [
     process.env.FRONTEND_URL,
     'http://localhost:5173',
     'http://localhost:3000',
+    'https://vmseva-1.onrender.com',
 ].filter(Boolean);
 
 app.use((req, res, next) => {
