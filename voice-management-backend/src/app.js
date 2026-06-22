@@ -1,10 +1,24 @@
 const express = require('express');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const authRoutes = require('./routes/auth.routes');
 const userRoutes = require('./routes/user.routes');
 const adminRoutes = require('./routes/admin.routes');
 const rolesRoutes = require('./routes/roles.routes');
 
 const app = express();
+
+// Security headers
+app.use(helmet());
+
+// Rate limiter for auth endpoints (max 20 requests per 15 min per IP)
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many requests, please try again later.' }
+});
 
 const ALLOWED_ORIGINS = [
     process.env.FRONTEND_URL,
@@ -30,7 +44,7 @@ app.get('/', (req, res) => {
     res.json({ message: 'Voice Management API' });
 });
 
-app.use('/api/auth', authRoutes);
+app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/roles', rolesRoutes);

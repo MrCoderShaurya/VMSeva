@@ -60,7 +60,7 @@ export const UsersPage: React.FC = () => {
               roles: userRolesRes.data || [],
             };
           } catch (err: any) {
-            console.error('Error fetching user roles for', u.id, err?.response?.data || err.message || err);
+            console.error(`Error fetching roles for user ${u.id}:`, err?.response?.status);
             return { ...u, is_active: u.is_active !== false, roles: [] };
           }
         })
@@ -68,7 +68,6 @@ export const UsersPage: React.FC = () => {
 
       setUsers(detailedUsers);
     } catch (err: any) {
-      console.error('Failed to fetch users:', err?.response?.data || err.message || err);
       const message = err?.response?.data?.error || err?.response?.data?.message || 'Failed to load user database';
       toast.error(message);
     } finally {
