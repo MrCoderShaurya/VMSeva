@@ -1,9 +1,18 @@
+import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Navbar } from '../components/Navbar';
 import { Link } from 'react-router-dom';
+import { usersAPI } from '../api';
 
 export default function Dashboard() {
   const { user, hasRole } = useAuth();
+  const [recentUsers, setRecentUsers] = useState([]);
+
+  useEffect(() => {
+    if (hasRole('Admin')) {
+      usersAPI.getAll().then(r => setRecentUsers(r.data.slice(0, 5)));
+    }
+  }, [user]);
 
   return (
     <>
@@ -34,23 +43,31 @@ export default function Dashboard() {
               <span style={{ fontSize: 14 }}>{user?.is_active ? 'Active' : 'Inactive'}</span>
             </div>
           </div>
-
-          {hasRole('Admin') && (
-            <Link to="/users" style={{ ...s.card, ...s.actionCard, textDecoration: 'none' }}>
-              <div style={s.cardLabel}>User Management</div>
-              <div style={s.cardDesc}>Manage users, assign roles, activate/deactivate accounts</div>
-              <div style={s.arrow}>→</div>
-            </Link>
-          )}
-
-          {hasRole('Admin') && (
-            <Link to="/admin" style={{ ...s.card, ...s.actionCard, textDecoration: 'none' }}>
-              <div style={s.cardLabel}>Admin Panel</div>
-              <div style={s.cardDesc}>View audit logs and system information</div>
-              <div style={s.arrow}>→</div>
-            </Link>
-          )}
         </div>
+
+        {hasRole('Admin') && (
+          <div style={{ ...s.card, marginTop: 20 }}>
+            <div style={s.cardHeader}>
+              <div style={s.cardLabel}>Recent Users</div>
+              <Link to="/users" style={s.viewAll}>View all & manage roles →</Link>
+            </div>
+            <div style={s.userList}>
+              {recentUsers.map(u => (
+                <div key={u.id} style={s.userRow}>
+                  <div style={s.uAvatar}>{(u.full_name || u.email)[0].toUpperCase()}</div>
+                  <div style={s.uInfo}>
+                    <div style={s.uName}>{u.full_name || '—'}</div>
+                    <div style={s.uEmail}>{u.email}</div>
+                  </div>
+                  <span style={{ ...s.statusDot, background: u.is_active ? '#00cc6618' : '#ff444418', color: u.is_active ? '#00cc66' : '#ff4444' }}>
+                    {u.is_active ? 'Active' : 'Inactive'}
+                  </span>
+                  <Link to="/users" style={s.manageBtn}>Manage →</Link>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </>
   );
@@ -58,18 +75,25 @@ export default function Dashboard() {
 
 const s = {
   page: { padding: '32px 24px', maxWidth: 900, margin: '0 auto' },
-  welcome: { display: 'flex', alignItems: 'center', gap: 16, marginBottom: 32 },
+  welcome: { display: 'flex', alignItems: 'center', gap: 16, marginBottom: 28 },
   avatar: { width: 48, height: 48, borderRadius: '50%', background: 'var(--surface2)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 700, flexShrink: 0 },
   name: { fontSize: 20, fontWeight: 600 },
   sub: { fontSize: 13, color: 'var(--text-secondary)', marginTop: 2 },
   grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 },
   card: { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '20px 24px' },
-  actionCard: { cursor: 'pointer', transition: 'border-color 0.2s', position: 'relative', color: 'var(--text)' },
-  cardLabel: { fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 },
-  cardDesc: { fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 },
-  arrow: { position: 'absolute', top: 20, right: 20, fontSize: 16, color: 'var(--text-muted)' },
+  cardHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  cardLabel: { fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' },
+  viewAll: { fontSize: 12, color: '#6c63ff', textDecoration: 'none' },
   badges: { display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 },
   badge: { fontSize: 12, background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text)', padding: '4px 10px', borderRadius: 20 },
   empty: { fontSize: 13, color: 'var(--text-muted)' },
   dot: { width: 8, height: 8, borderRadius: '50%', flexShrink: 0 },
+  userList: { display: 'flex', flexDirection: 'column', gap: 4 },
+  userRow: { display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 8, background: 'var(--surface2)' },
+  uAvatar: { width: 32, height: 32, borderRadius: '50%', background: 'var(--surface)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, flexShrink: 0 },
+  uInfo: { flex: 1, minWidth: 0 },
+  uName: { fontSize: 13, fontWeight: 500 },
+  uEmail: { fontSize: 11, color: 'var(--text-secondary)' },
+  statusDot: { fontSize: 11, padding: '2px 8px', borderRadius: 20, fontWeight: 500, flexShrink: 0 },
+  manageBtn: { fontSize: 11, color: '#6c63ff', textDecoration: 'none', flexShrink: 0 },
 };
