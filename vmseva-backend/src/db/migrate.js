@@ -48,12 +48,16 @@ const createTables = async () => {
     CREATE TABLE IF NOT EXISTS otp_verifications (
       id SERIAL PRIMARY KEY,
       email VARCHAR(255) NOT NULL,
-      otp VARCHAR(6) NOT NULL,
+      otp VARCHAR(64) NOT NULL,
       expires_at TIMESTAMP NOT NULL,
       verified BOOLEAN DEFAULT false,
       created_at TIMESTAMP DEFAULT NOW()
     )
   `);
+
+  await pool.query(`
+    ALTER TABLE otp_verifications ALTER COLUMN otp TYPE VARCHAR(64)
+  `).catch(() => {});
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS trusted_devices (
