@@ -24,7 +24,6 @@ export default function Register() {
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
-  const [verifiedToken, setVerifiedToken] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [showPw, setShowPw] = useState(false);
@@ -73,7 +72,7 @@ export default function Register() {
     setError('');
     setLoading(true);
     try {
-      const { data } = await authAPI.verifyOTP({ email, otp: otp.join(''), type: 'register' });
+      await authAPI.verifyOTP({ email, otp: otp.join(''), type: 'register' });
       setStep(3);
     } catch (err) {
       setError(err.response?.data?.message || 'Invalid OTP');
