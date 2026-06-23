@@ -1,51 +1,236 @@
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useState, useRef, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { authAPI } from '../api';
 
-export default function Register() {
-  const [form, setForm] = useState({ email: '', password: '', full_name: '' });
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const navigate = useNavigate();
+const rules = [
+  { id: 'len',     label: 'At least 8 characters',       test: p => p.length >= 8 },
+  { id: 'upper',   label: 'One uppercase letter',         test: p => /[A-Z]/.test(p) },
+  { id: 'lower',   label: 'One lowercase letter',         test: p => /[a-z]/.test(p) },
+  { id: 'number',  label: 'One number',                   test: p => /[0-9]/.test(p) },
+  { id: 'special', label: 'One special character',        test: p => /[^A-Za-z0-9]/.test(p) },
+];
 
-  const submit = async (e) => {
-    e.preventDefault();
+function getStrength(p) {
+  const passed = rules.filter(r => r.test(p)).length;
+  if (!p) return { score: 0, label: '', color: '' };
+  if (passed <= 2) return { score: 20, label: 'Weak', color: '#ff4444' };
+  if (passed === 3) return { score: 50, label: 'Fair', color: '#ffaa00' };
+  if (passed === 4) return { score: 75, label: 'Good', color: '#44aaff' };
+  return { score: 100, label: 'Strong', color: '#00cc66' };
+}
+
+export default function Register() {
+  const [step, setStep] = useState(1); // 1=email, 2=otp, 3=password
+  const [email, setEmail] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [showPw, setShowPw] = useState(false);
+  const [showCf, setShowCf] = useState(false);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [resendTimer, setResendTimer] = useState(0);
+  const otpRefs = useRef([]);
+  const navigate = useNavigate();
+  const strength = getStrength(password);
+  const allRulesPassed = rules.every(r => r.test(password));
+  const passwordsMatch = password === confirm && confirm.length > 0;
+
+  useEffect(() => {
+    if (resendTimer > 0) {
+      const t = setTimeout(() => setResendTimer(r => r - 1), 1000);
+      return () => clearTimeout(t);
+    }
+  }, [resendTimer]);
+
+  const sendOTP = async (e) => {
+    e?.preventDefault();
+    setError('');
+    setLoading(true);
     try {
-      await authAPI.register(form);
-      setSuccess('Registered! Please login.');
-      setTimeout(() => navigate('/login'), 1500);
+      await authAPI.sendOTP({ email, type: 'register' });
+      setStep(2);
+      setResendTimer(60);
+      setTimeout(() => otpRefs.current[0]?.focus(), 100);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to send OTP');
+    } finally { setLoading(false); }
+  };
+
+  const handleOtpKey = (i, e) => {
+    const val = e.target.value.replace(/\D/, '');
+    const next = [...otp];
+    next[i] = val;
+    setOtp(next);
+    if (val && i < 5) otpRefs.current[i + 1]?.focus();
+    if (e.key === 'Backspace' && !otp[i] && i > 0) otpRefs.current[i - 1]?.focus();
+  };
+
+  const verifyOTP = async (e) => {
+    e?.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      await authAPI.verifyOTP({ email, otp: otp.join(''), type: 'register' });
+      setStep(3);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Invalid OTP');
+      setOtp(['', '', '', '', '', '']);
+      otpRefs.current[0]?.focus();
+    } finally { setLoading(false); }
+  };
+
+  const register = async (e) => {
+    e?.preventDefault();
+    if (!allRulesPassed) return setError('Password does not meet requirements');
+    if (!passwordsMatch) return setError('Passwords do not match');
+    setError('');
+    setLoading(true);
+    try {
+      await authAPI.register({ email, password, full_name: fullName });
+      navigate('/login', { state: { registered: true } });
     } catch (err) {
       setError(err.response?.data?.message || 'Registration failed');
-    }
+    } finally { setLoading(false); }
   };
 
   return (
-    <div style={styles.container}>
-      <div style={styles.card}>
-        <h2 style={styles.title}>Register</h2>
-        {error && <p style={styles.error}>{error}</p>}
-        {success && <p style={styles.success}>{success}</p>}
-        <form onSubmit={submit}>
-          <input style={styles.input} placeholder="Full Name" value={form.full_name}
-            onChange={e => setForm({...form, full_name: e.target.value})} />
-          <input style={styles.input} placeholder="Email" type="email" value={form.email}
-            onChange={e => setForm({...form, email: e.target.value})} required />
-          <input style={styles.input} placeholder="Password" type="password" value={form.password}
-            onChange={e => setForm({...form, password: e.target.value})} required />
-          <button style={styles.btn} type="submit">Register</button>
-        </form>
-        <p style={{textAlign:'center', marginTop:12}}>Have account? <Link to="/login">Login</Link></p>
+    <div className="auth-bg">
+      <div className="auth-card">
+        <div className="auth-logo">VMSeva</div>
+        <div className="auth-subtitle">
+          {step === 1 && 'Create your account'}
+          {step === 2 && 'Verify your email'}
+          {step === 3 && 'Set your password'}
+        </div>
+
+        <div className="steps">
+          {[1, 2, 3].map(s => (
+            <div key={s} className={`step-dot ${step === s ? 'active' : step > s ? 'done' : ''}`} />
+          ))}
+        </div>
+
+        {error && <div className="msg-error">{error}</div>}
+
+        {/* Step 1 — Email */}
+        {step === 1 && (
+          <form onSubmit={sendOTP}>
+            <div className="field">
+              <label>Full Name</label>
+              <input type="text" placeholder="John Doe"
+                value={fullName} onChange={e => setFullName(e.target.value)} required />
+            </div>
+            <div className="field">
+              <label>Email</label>
+              <input type="email" placeholder="you@example.com"
+                value={email} onChange={e => setEmail(e.target.value)} required />
+            </div>
+            <button className="btn-primary" type="submit" disabled={loading}>
+              {loading ? 'Sending OTP...' : 'Send OTP'}
+            </button>
+          </form>
+        )}
+
+        {/* Step 2 — OTP */}
+        {step === 2 && (
+          <form onSubmit={verifyOTP}>
+            <p style={{ fontSize: 13, color: 'var(--text-secondary)', textAlign: 'center', marginBottom: 4 }}>
+              We sent a 6-digit code to
+            </p>
+            <p style={{ fontSize: 14, color: 'var(--text)', textAlign: 'center', fontWeight: 600, marginBottom: 4 }}>
+              {email}
+            </p>
+            <div className="otp-grid">
+              {otp.map((v, i) => (
+                <input key={i} ref={el => otpRefs.current[i] = el}
+                  className="otp-input" type="text" inputMode="numeric"
+                  maxLength={1} value={v}
+                  onChange={e => handleOtpKey(i, e)}
+                  onKeyDown={e => e.key === 'Backspace' && handleOtpKey(i, e)} />
+              ))}
+            </div>
+            <button className="btn-primary" type="submit"
+              disabled={loading || otp.join('').length !== 6}>
+              {loading ? 'Verifying...' : 'Verify OTP'}
+            </button>
+            <div className="resend-row">
+              {resendTimer > 0
+                ? `Resend in ${resendTimer}s`
+                : <><button className="resend-btn" type="button" onClick={sendOTP}>Resend OTP</button></>
+              }
+            </div>
+            <div style={{ textAlign: 'center', marginTop: 12 }}>
+              <button type="button" className="btn-ghost" style={{ width: 'auto', padding: '6px 16px', fontSize: 12 }}
+                onClick={() => { setStep(1); setOtp(['', '', '', '', '', '']); setError(''); }}>
+                ← Change email
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* Step 3 — Password */}
+        {step === 3 && (
+          <form onSubmit={register}>
+            <div className="field">
+              <label>Password</label>
+              <div className="field-row">
+                <input type={showPw ? 'text' : 'password'} placeholder="••••••••"
+                  value={password} onChange={e => setPassword(e.target.value)} required />
+                <button type="button" className="field-eye" onClick={() => setShowPw(p => !p)}>
+                  {showPw ? '🙈' : '👁️'}
+                </button>
+              </div>
+              {password && (
+                <>
+                  <div className="strength-bar">
+                    <div className="strength-fill" style={{ width: `${strength.score}%`, background: strength.color }} />
+                  </div>
+                  <span className="strength-label" style={{ color: strength.color }}>{strength.label}</span>
+                </>
+              )}
+            </div>
+
+            {password && (
+              <div className="pw-rules">
+                {rules.map(r => (
+                  <div key={r.id} className={`pw-rule ${r.test(password) ? 'ok' : ''}`}>
+                    <span className="dot" />
+                    {r.label}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="field" style={{ marginTop: 14 }}>
+              <label>Confirm Password</label>
+              <div className="field-row">
+                <input type={showCf ? 'text' : 'password'} placeholder="••••••••"
+                  value={confirm} onChange={e => setConfirm(e.target.value)} required
+                  style={{ borderColor: confirm && !passwordsMatch ? 'var(--error)' : undefined }} />
+                <button type="button" className="field-eye" onClick={() => setShowCf(p => !p)}>
+                  {showCf ? '🙈' : '👁️'}
+                </button>
+              </div>
+              {confirm && !passwordsMatch && (
+                <p style={{ fontSize: 12, color: 'var(--error)', marginTop: 4 }}>Passwords do not match</p>
+              )}
+              {confirm && passwordsMatch && (
+                <p style={{ fontSize: 12, color: 'var(--success)', marginTop: 4 }}>✓ Passwords match</p>
+              )}
+            </div>
+
+            <button className="btn-primary" type="submit"
+              disabled={loading || !allRulesPassed || !passwordsMatch}>
+              {loading ? 'Creating account...' : 'Create Account'}
+            </button>
+          </form>
+        )}
+
+        <div className="auth-links">
+          Already have an account? <Link to="/login">Sign in</Link>
+        </div>
       </div>
     </div>
   );
 }
-
-const styles = {
-  container: { minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'#f0f2f5' },
-  card: { background:'#fff', padding:'40px', borderRadius:'8px', width:'360px', boxShadow:'0 2px 12px rgba(0,0,0,0.1)' },
-  title: { textAlign:'center', marginBottom:'24px', color:'#1a1a2e' },
-  input: { width:'100%', padding:'10px', marginBottom:'12px', border:'1px solid #ddd', borderRadius:'4px', boxSizing:'border-box' },
-  btn: { width:'100%', padding:'10px', background:'#1a1a2e', color:'#fff', border:'none', borderRadius:'4px', cursor:'pointer', fontWeight:'bold' },
-  error: { color:'red', textAlign:'center', marginBottom:'12px' },
-  success: { color:'green', textAlign:'center', marginBottom:'12px' },
-};

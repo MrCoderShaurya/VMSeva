@@ -9,6 +9,13 @@ const register = async (req, res) => {
     const { email, password, full_name } = req.body;
     if (!email || !password) return res.status(400).json({ message: 'Email and password required' });
 
+    // Check OTP was verified
+    const { rows: otpRows } = await pool.query(
+      'SELECT id FROM otp_verifications WHERE email = $1 AND verified = true',
+      [email.toLowerCase()]
+    );
+    if (!otpRows.length) return res.status(403).json({ message: 'Email not verified. Please verify OTP first.' });
+
     const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email.toLowerCase()]);
     if (existing.rows.length) return res.status(409).json({ message: 'Email already registered' });
 
@@ -18,14 +25,16 @@ const register = async (req, res) => {
       [email.toLowerCase(), password_hash, full_name]
     );
 
+    // Cleanup OTP record
+    await pool.query('DELETE FROM otp_verifications WHERE email = $1', [email.toLowerCase()]);
+
     log(rows[0].id, 'register', 'user', rows[0].id, { email: rows[0].email }, req.ip);
 
     sendMail({
       to: email.toLowerCase(),
       subject: 'Welcome to VMSeva',
       html: `<h2>Welcome${full_name ? ', ' + full_name : ''}!</h2>
-             <p>Your account has been created successfully.</p>
-             <p><b>Email:</b> ${email.toLowerCase()}</p>`,
+             <p>Your account has been created successfully.</p>`,
     }).catch(() => {});
 
     res.status(201).json({ user: rows[0] });

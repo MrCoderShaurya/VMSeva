@@ -18,6 +18,7 @@ app.use('/api/auth', require('./src/routes/auth'));
 app.use('/api/users', require('./src/routes/users'));
 app.use('/api/admin', require('./src/routes/admin'));
 
+app.get('/', (req, res) => res.json({ status: 'ok', message: 'VMSeva API is running' }));
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
 const PORT = process.env.PORT || 5000;

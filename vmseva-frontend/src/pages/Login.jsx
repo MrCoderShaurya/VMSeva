@@ -4,44 +4,65 @@ import { useAuth } from '../context/AuthContext';
 
 export default function Login() {
   const [form, setForm] = useState({ email: '', password: '' });
+  const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
   const submit = async (e) => {
     e.preventDefault();
+    setLoading(true);
+    setError('');
     try {
       await login(form.email, form.password);
       navigate('/dashboard');
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div style={styles.container}>
-      <div style={styles.card}>
-        <h2 style={styles.title}>VMSeva Login</h2>
-        {error && <p style={styles.error}>{error}</p>}
+    <div className="auth-bg">
+      <div className="auth-card">
+        <div className="auth-logo">VMSeva</div>
+        <div className="auth-subtitle">Sign in to your account</div>
+
+        {error && <div className="msg-error">{error}</div>}
+
         <form onSubmit={submit}>
-          <input style={styles.input} placeholder="Email" type="email"
-            value={form.email} onChange={e => setForm({...form, email: e.target.value})} required />
-          <input style={styles.input} placeholder="Password" type="password"
-            value={form.password} onChange={e => setForm({...form, password: e.target.value})} required />
-          <button style={styles.btn} type="submit">Login</button>
+          <div className="field">
+            <label>Email</label>
+            <input type="email" placeholder="you@example.com"
+              value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required />
+          </div>
+
+          <div className="field">
+            <label>Password</label>
+            <div className="field-row">
+              <input type={showPw ? 'text' : 'password'} placeholder="••••••••"
+                value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} required />
+              <button type="button" className="field-eye" onClick={() => setShowPw(p => !p)}>
+                {showPw ? '🙈' : '👁️'}
+              </button>
+            </div>
+          </div>
+
+          <button className="btn-primary" type="submit" disabled={loading}>
+            {loading ? 'Signing in...' : 'Sign In'}
+          </button>
         </form>
-        <p style={{textAlign:'center', marginTop:12}}>No account? <Link to="/register">Register</Link></p>
-        <p style={{textAlign:'center', marginTop:8}}><Link to="/forgot-password">Forgot password?</Link></p>
+
+        <div className="auth-links" style={{ marginTop: 16 }}>
+          <Link to="/forgot-password">Forgot password?</Link>
+        </div>
+        <div className="auth-divider" style={{ marginTop: 20 }}><span>or</span></div>
+        <div className="auth-links" style={{ marginTop: 0 }}>
+          Don't have an account? <Link to="/register">Register</Link>
+        </div>
       </div>
     </div>
   );
 }
-
-const styles = {
-  container: { minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'#f0f2f5' },
-  card: { background:'#fff', padding:'40px', borderRadius:'8px', width:'360px', boxShadow:'0 2px 12px rgba(0,0,0,0.1)' },
-  title: { textAlign:'center', marginBottom:'24px', color:'#1a1a2e' },
-  input: { width:'100%', padding:'10px', marginBottom:'12px', border:'1px solid #ddd', borderRadius:'4px', boxSizing:'border-box' },
-  btn: { width:'100%', padding:'10px', background:'#e94560', color:'#fff', border:'none', borderRadius:'4px', cursor:'pointer', fontWeight:'bold' },
-  error: { color:'red', textAlign:'center', marginBottom:'12px' },
-};
