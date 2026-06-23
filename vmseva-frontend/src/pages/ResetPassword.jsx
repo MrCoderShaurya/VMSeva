@@ -31,7 +31,7 @@ export default function ResetPassword() {
   const navigate = useNavigate();
   const token = searchParams.get('token');
   const strength = getStrength(password);
-  const allRulesPassed = rules.every(r => r.test(password));
+  const allRulesPassed = rules.filter(r => r.test(password)).length >= 4;
   const passwordsMatch = password === confirm && confirm.length > 0;
 
   const submit = async (e) => {
@@ -66,7 +66,10 @@ export default function ResetPassword() {
                 <input type={showPw ? 'text' : 'password'} placeholder="••••••••"
                   value={password} onChange={e => setPassword(e.target.value)} required />
                 <button type="button" className="field-eye" onClick={() => setShowPw(p => !p)}>
-                  {showPw ? '🙈' : '👁️'}
+                  {showPw
+                    ? <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-5 0-9-4-9-7s4-7 9-7a9.97 9.97 0 016.293 2.207M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3l18 18" /></svg>
+                    : <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                  }
                 </button>
               </div>
               {password && (
@@ -96,7 +99,10 @@ export default function ResetPassword() {
                   value={confirm} onChange={e => setConfirm(e.target.value)} required
                   style={{ borderColor: confirm && !passwordsMatch ? 'var(--error)' : undefined }} />
                 <button type="button" className="field-eye" onClick={() => setShowCf(p => !p)}>
-                  {showCf ? '🙈' : '👁️'}
+                  {showCf
+                    ? <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-5 0-9-4-9-7s4-7 9-7a9.97 9.97 0 016.293 2.207M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3l18 18" /></svg>
+                    : <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                  }
                 </button>
               </div>
               {confirm && !passwordsMatch && (
