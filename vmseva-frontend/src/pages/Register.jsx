@@ -35,7 +35,7 @@ export default function Register() {
   const otpRefs = useRef([]);
   const navigate = useNavigate();
   const strength = getStrength(password);
-  const allRulesPassed = rules.every(r => r.test(password));
+  const allRulesPassed = rules.filter(r => r.test(password)).length >= 3;
   const passwordsMatch = password === confirm && confirm.length > 0;
 
   useEffect(() => {
