@@ -7,15 +7,16 @@ const log = require('../config/audit');
 
 const register = async (req, res) => {
   try {
-    const { email, password, full_name } = req.body;
+    const { email, password, full_name, verified_token } = req.body;
     if (!email || !password) return res.status(400).json({ message: 'Email and password required' });
+    if (!verified_token) return res.status(403).json({ message: 'Email not verified. Please verify OTP first.' });
 
-    // Check OTP was verified
+    // Validate the verified_token
     const { rows: otpRows } = await pool.query(
-      'SELECT id FROM otp_verifications WHERE email = $1 AND verified = true',
-      [email.toLowerCase()]
+      'SELECT id FROM otp_verifications WHERE email = $1 AND otp = $2 AND verified = true AND expires_at > NOW()',
+      [email.toLowerCase(), verified_token]
     );
-    if (!otpRows.length) return res.status(403).json({ message: 'Email not verified. Please verify OTP first.' });
+    if (!otpRows.length) return res.status(403).json({ message: 'Invalid or expired verification. Please restart.' });
 
     const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email.toLowerCase()]);
     if (existing.rows.length) return res.status(409).json({ message: 'Email already registered' });
@@ -26,21 +27,19 @@ const register = async (req, res) => {
       [email.toLowerCase(), password_hash, full_name]
     );
 
-    // Cleanup OTP record
     await pool.query('DELETE FROM otp_verifications WHERE email = $1', [email.toLowerCase()]);
-
     log(rows[0].id, 'register', 'user', rows[0].id, { email: rows[0].email }, req.ip);
 
     sendMail({
       to: email.toLowerCase(),
       subject: 'Welcome to VMSeva',
-      html: `<h2>Welcome${full_name ? ', ' + full_name : ''}!</h2>
-             <p>Your account has been created successfully.</p>`,
+      html: `<h2>Welcome${full_name ? ', ' + full_name : ''}!</h2><p>Your account has been created successfully.</p>`,
     }).catch(() => {});
 
     res.status(201).json({ user: rows[0] });
   } catch (err) {
-    res.status(500).json({ message: 'Server error' });
+    console.error('register error:', err.message);
+    res.status(500).json({ message: err.message });
   }
 };
 

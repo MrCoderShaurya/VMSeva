@@ -20,10 +20,11 @@ function getStrength(p) {
 }
 
 export default function Register() {
-  const [step, setStep] = useState(1); // 1=email, 2=otp, 3=password
+  const [step, setStep] = useState(1);
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const [verifiedToken, setVerifiedToken] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [showPw, setShowPw] = useState(false);
@@ -72,7 +73,8 @@ export default function Register() {
     setError('');
     setLoading(true);
     try {
-      await authAPI.verifyOTP({ email, otp: otp.join(''), type: 'register' });
+      const { data } = await authAPI.verifyOTP({ email, otp: otp.join(''), type: 'register' });
+      setVerifiedToken(data.verified_token);
       setStep(3);
     } catch (err) {
       setError(err.response?.data?.message || 'Invalid OTP');
@@ -88,7 +90,7 @@ export default function Register() {
     setError('');
     setLoading(true);
     try {
-      await authAPI.register({ email, password, full_name: fullName });
+      await authAPI.register({ email, password, full_name: fullName, verified_token: verifiedToken });
       navigate('/login', { state: { registered: true } });
     } catch (err) {
       setError(err.response?.data?.message || 'Registration failed');
