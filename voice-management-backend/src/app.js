@@ -8,13 +8,9 @@ const rolesRoutes = require('./routes/roles.routes');
 
 const app = express();
 
-// Trust Render's proxy
 app.set('trust proxy', 1);
-
-// Security headers
 app.use(helmet());
 
-// Rate limiter for auth endpoints (max 20 requests per 15 min per IP)
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 20,
@@ -24,10 +20,10 @@ const authLimiter = rateLimit({
 });
 
 const ALLOWED_ORIGINS = [
-    process.env.FRONTEND_URL,
+    'https://vmseva-1.onrender.com',
     'http://localhost:5173',
     'http://localhost:3000',
-    'https://vmseva-1.onrender.com',
+    process.env.FRONTEND_URL,
 ].filter(Boolean);
 
 app.use((req, res, next) => {
@@ -41,19 +37,17 @@ app.use((req, res, next) => {
     if (req.method === 'OPTIONS') return res.sendStatus(200);
     next();
 });
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.get('/', (req, res) => {
-    res.json({ message: 'Voice Management API' });
-});
+app.get('/', (req, res) => res.json({ message: 'Voice Management API' }));
 
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/roles', rolesRoutes);
 
-// Error handling middleware (must be last)
 app.use((err, req, res, next) => {
     console.error('Error:', err);
     if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
