@@ -8,13 +8,11 @@ const transporter = nodemailer.createTransport({
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS
     },
-    tls: {
-        rejectUnauthorized: false
-    }
+    tls: { rejectUnauthorized: false }
 });
 
 transporter.verify((err) => {
-    if (err) console.error('Mailer config error:', err.message);
+    if (err) console.error('Mailer error:', err.message);
     else console.log('Mailer ready');
 });
 
