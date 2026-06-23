@@ -146,7 +146,8 @@ const sendEmailOtp = async (email) => {
       html: `<p>Your verification code is: <strong>${otp}</strong>.</p><p>It expires in 10 minutes.</p>`
     });
   } catch (err) {
-    console.error('Failed to send OTP email:', err);
+    console.error('Failed to send OTP email:', err.message);
+    throw { status: 500, message: `Failed to send OTP email: ${err.message}` };
   }
 
   return process.env.NODE_ENV !== 'production' ? otp : null;

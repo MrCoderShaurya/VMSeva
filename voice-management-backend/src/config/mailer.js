@@ -13,6 +13,11 @@ const transporter = nodemailer.createTransport({
     }
 });
 
+transporter.verify((err) => {
+    if (err) console.error('Mailer config error:', err.message);
+    else console.log('Mailer ready');
+});
+
 const sendMail = async ({ to, subject, text, html }) => {
     const from = process.env.EMAIL_FROM || process.env.SMTP_USER || 'no-reply@example.com';
     const mailOptions = { from, to, subject, text, html };
