@@ -13,7 +13,6 @@ export const Navbar = () => {
         <Link to="/dashboard" style={{ ...s.link, ...(active('/dashboard') ? s.activeLink : {}) }}>Dashboard</Link>
         {hasRole('Admin') && <Link to="/users" style={{ ...s.link, ...(active('/users') ? s.activeLink : {}) }}>Users</Link>}
         {hasRole('Admin') && <Link to="/admin" style={{ ...s.link, ...(active('/admin') ? s.activeLink : {}) }}>Admin</Link>}
-        <Link to="/profile" style={{ ...s.link, ...(active('/profile') ? s.activeLink : {}) }}>Profile</Link>
         <button onClick={logout} style={s.btn}>Logout</button>
       </div>
     </nav>
