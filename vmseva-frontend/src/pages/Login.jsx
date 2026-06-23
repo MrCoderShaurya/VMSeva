@@ -7,6 +7,7 @@ export default function Login() {
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [rememberDevice, setRememberDevice] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -15,7 +16,7 @@ export default function Login() {
     setLoading(true);
     setError('');
     try {
-      await login(form.email, form.password);
+      await login(form.email, form.password, rememberDevice, rememberDevice);
       navigate('/dashboard');
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed');
@@ -35,14 +36,14 @@ export default function Login() {
         <form onSubmit={submit}>
           <div className="field">
             <label>Email</label>
-            <input type="email" placeholder="you@example.com"
+            <input type="email" placeholder="you@example.com" autoComplete="email"
               value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required />
           </div>
 
           <div className="field">
             <label>Password</label>
             <div className="field-row">
-              <input type={showPw ? 'text' : 'password'} placeholder="••••••••"
+              <input type={showPw ? 'text' : 'password'} placeholder="••••••••" autoComplete="current-password"
                 value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} required />
               <button type="button" className="field-eye" onClick={() => setShowPw(p => !p)}>
                 {showPw ? '🙈' : '👁️'}
@@ -53,13 +54,21 @@ export default function Login() {
           <button className="btn-primary" type="submit" disabled={loading}>
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
+
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginTop:14 }}>
+            <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:13, color:'var(--text-secondary)' }}>
+              <input type="checkbox" checked={rememberDevice} onChange={e => setRememberDevice(e.target.checked)}
+                style={{ accentColor:'#fff', width:14, height:14, cursor:'pointer' }} />
+              Remember this device
+            </label>
+            <Link to="/forgot-password" style={{ fontSize:13, color:'var(--text-secondary)', textDecoration:'none' }}>
+              Forgot password?
+            </Link>
+          </div>
         </form>
 
-        <div className="auth-links" style={{ marginTop: 16 }}>
-          <Link to="/forgot-password">Forgot password?</Link>
-        </div>
-        <div className="auth-divider" style={{ marginTop: 20 }}><span>or</span></div>
-        <div className="auth-links" style={{ marginTop: 0 }}>
+        <div className="auth-divider" style={{ marginTop:20 }}><span>or</span></div>
+        <div className="auth-links" style={{ marginTop:0 }}>
           Don't have an account? <Link to="/register">Register</Link>
         </div>
       </div>

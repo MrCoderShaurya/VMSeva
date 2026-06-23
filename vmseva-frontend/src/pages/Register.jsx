@@ -175,7 +175,7 @@ export default function Register() {
             <div className="field">
               <label>Password</label>
               <div className="field-row">
-                <input type={showPw ? 'text' : 'password'} placeholder="••••••••"
+                <input type={showPw ? 'text' : 'password'} placeholder="••••••••" autoComplete="new-password"
                   value={password} onChange={e => setPassword(e.target.value)} required />
                 <button type="button" className="field-eye" onClick={() => setShowPw(p => !p)}>
                   {showPw ? '🙈' : '👁️'}
@@ -205,7 +205,7 @@ export default function Register() {
             <div className="field" style={{ marginTop: 14 }}>
               <label>Confirm Password</label>
               <div className="field-row">
-                <input type={showCf ? 'text' : 'password'} placeholder="••••••••"
+                <input type={showCf ? 'text' : 'password'} placeholder="••••••••" autoComplete="new-password"
                   value={confirm} onChange={e => setConfirm(e.target.value)} required
                   style={{ borderColor: confirm && !passwordsMatch ? 'var(--error)' : undefined }} />
                 <button type="button" className="field-eye" onClick={() => setShowCf(p => !p)}>

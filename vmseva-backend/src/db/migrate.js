@@ -45,6 +45,29 @@ const createTables = async () => {
   `);
 
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS otp_verifications (
+      id SERIAL PRIMARY KEY,
+      email VARCHAR(255) NOT NULL,
+      otp VARCHAR(6) NOT NULL,
+      expires_at TIMESTAMP NOT NULL,
+      verified BOOLEAN DEFAULT false,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS trusted_devices (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      device_token VARCHAR(64) UNIQUE NOT NULL,
+      user_agent TEXT,
+      ip_address VARCHAR(45),
+      created_at TIMESTAMP DEFAULT NOW(),
+      last_used_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+
+  await pool.query(`
     INSERT INTO roles (name) VALUES
       ('Admin'),
       ('Overall Coordinator'),

@@ -15,7 +15,6 @@ export const authAPI = {
   changePassword: (data) => api.put('/auth/change-password', data),
   sendOTP: (data) => api.post('/auth/send-otp', data),
   verifyOTP: (data) => api.post('/auth/verify-otp', data),
-  forgotPassword: (data) => api.post('/auth/forgot-password', data),
   resetPassword: (data) => api.post('/auth/reset-password', data),
 };
 
