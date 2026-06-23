@@ -3,10 +3,9 @@ import { Link } from 'react-router-dom';
 import { authAPI } from '../api';
 
 export default function ForgotPassword() {
-  const [step, setStep] = useState(1); // 1=email, 2=otp
+  const [step, setStep] = useState(1);
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
-  const [resetToken, setResetToken] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
@@ -47,10 +46,8 @@ export default function ForgotPassword() {
     setError('');
     setLoading(true);
     try {
-      const { data } = await authAPI.verifyOTP({ email, otp: otp.join(''), type: 'forgot' });
-      setResetToken(data.reset_token);
-      // Redirect to reset password page with token
-      window.location.href = `/reset-password?token=${data.reset_token}`;
+      await authAPI.verifyOTP({ email, otp: otp.join(''), type: 'forgot' });
+      window.location.href = `/reset-password?email=${encodeURIComponent(email)}`;
     } catch (err) {
       setError(err.response?.data?.message || 'Invalid OTP');
       setOtp(['', '', '', '', '', '']);

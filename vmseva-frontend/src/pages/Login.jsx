@@ -7,7 +7,7 @@ export default function Login() {
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [rememberDevice, setRememberDevice] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -16,7 +16,7 @@ export default function Login() {
     setLoading(true);
     setError('');
     try {
-      await login(form.email, form.password, rememberDevice, rememberDevice);
+      await login(form.email, form.password, rememberMe);
       navigate('/dashboard');
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed');
@@ -60,9 +60,9 @@ export default function Login() {
 
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginTop:14 }}>
             <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:13, color:'var(--text-secondary)' }}>
-              <input type="checkbox" checked={rememberDevice} onChange={e => setRememberDevice(e.target.checked)}
+              <input type="checkbox" checked={rememberMe} onChange={e => setRememberMe(e.target.checked)}
                 style={{ accentColor:'#fff', width:14, height:14, cursor:'pointer' }} />
-              Remember this device
+              Remember me
             </label>
             <Link to="/forgot-password" style={{ fontSize:13, color:'var(--text-secondary)', textDecoration:'none' }}>
               Forgot password?

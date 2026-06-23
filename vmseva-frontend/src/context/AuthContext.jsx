@@ -8,7 +8,6 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check both localStorage (remember me) and sessionStorage (session only)
     const token = localStorage.getItem('token') || sessionStorage.getItem('token');
     if (token) {
       authAPI.me()
@@ -21,18 +20,14 @@ export const AuthProvider = ({ children }) => {
     } else setLoading(false);
   }, []);
 
-  const login = async (email, password, rememberMe = false, rememberDevice = false) => {
-    const deviceToken = localStorage.getItem('deviceToken') || null;
-    const { data } = await authAPI.login({ email, password, rememberDevice, deviceToken });
+  const login = async (email, password, rememberMe = false) => {
+    const { data } = await authAPI.login({ email, password });
     if (rememberMe) {
       localStorage.setItem('token', data.token);
       sessionStorage.removeItem('token');
     } else {
       sessionStorage.setItem('token', data.token);
       localStorage.removeItem('token');
-    }
-    if (data.deviceToken) {
-      localStorage.setItem('deviceToken', data.deviceToken);
     }
     const me = await authAPI.me();
     setUser(me.data);
@@ -41,7 +36,6 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     localStorage.removeItem('token');
     sessionStorage.removeItem('token');
-    // deviceToken intentionally kept so device stays trusted
     setUser(null);
   };
 

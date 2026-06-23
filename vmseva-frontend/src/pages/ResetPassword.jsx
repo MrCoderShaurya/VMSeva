@@ -29,7 +29,7 @@ export default function ResetPassword() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const token = searchParams.get('token');
+  const email = searchParams.get('email');
   const strength = getStrength(password);
   const allRulesPassed = rules.filter(r => r.test(password)).length >= 4;
   const passwordsMatch = password === confirm && confirm.length > 0;
@@ -41,11 +41,11 @@ export default function ResetPassword() {
     setError('');
     setLoading(true);
     try {
-      await authAPI.resetPassword({ token, new_password: password });
+      await authAPI.resetPassword({ email, new_password: password });
       setMsg('Password reset successfully!');
       setTimeout(() => navigate('/login'), 2000);
     } catch (err) {
-      setError(err.response?.data?.message || 'Invalid or expired link');
+      setError(err.response?.data?.message || 'Reset failed');
     } finally { setLoading(false); }
   };
 
@@ -63,7 +63,7 @@ export default function ResetPassword() {
             <div className="field">
               <label>New Password</label>
               <div className="field-row">
-                <input type={showPw ? 'text' : 'password'} placeholder="••••••••"
+                <input type={showPw ? 'text' : 'password'} placeholder="••••••••" autoComplete="new-password"
                   value={password} onChange={e => setPassword(e.target.value)} required />
                 <button type="button" className="field-eye" onClick={() => setShowPw(p => !p)}>
                   {showPw
@@ -95,7 +95,7 @@ export default function ResetPassword() {
             <div className="field" style={{ marginTop: 14 }}>
               <label>Confirm Password</label>
               <div className="field-row">
-                <input type={showCf ? 'text' : 'password'} placeholder="••••••••"
+                <input type={showCf ? 'text' : 'password'} placeholder="••••••••" autoComplete="new-password"
                   value={confirm} onChange={e => setConfirm(e.target.value)} required
                   style={{ borderColor: confirm && !passwordsMatch ? 'var(--error)' : undefined }} />
                 <button type="button" className="field-eye" onClick={() => setShowCf(p => !p)}>

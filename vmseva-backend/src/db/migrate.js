@@ -8,11 +8,15 @@ const createTables = async () => {
       password_hash VARCHAR(255) NOT NULL,
       full_name VARCHAR(255),
       is_active BOOLEAN DEFAULT true,
-      reset_token VARCHAR(255),
-      reset_token_expires TIMESTAMP,
       created_at TIMESTAMP DEFAULT NOW()
     )
   `);
+
+  await pool.query(`
+    ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS full_name VARCHAR(255),
+      ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true
+  `).catch(() => {});
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS roles (
@@ -55,21 +59,7 @@ const createTables = async () => {
     )
   `);
 
-  await pool.query(`
-    ALTER TABLE otp_verifications ALTER COLUMN otp TYPE VARCHAR(64)
-  `).catch(() => {});
-
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS trusted_devices (
-      id SERIAL PRIMARY KEY,
-      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      device_token VARCHAR(64) UNIQUE NOT NULL,
-      user_agent TEXT,
-      ip_address VARCHAR(45),
-      created_at TIMESTAMP DEFAULT NOW(),
-      last_used_at TIMESTAMP DEFAULT NOW()
-    )
-  `);
+  await pool.query(`ALTER TABLE otp_verifications ALTER COLUMN otp TYPE VARCHAR(64)`).catch(() => {});
 
   await pool.query(`
     INSERT INTO roles (name) VALUES

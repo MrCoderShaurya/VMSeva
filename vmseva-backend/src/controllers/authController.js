@@ -1,6 +1,5 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const crypto = require('crypto');
 const pool = require('../config/db');
 const sendMail = require('../config/mailer');
 const log = require('../config/audit');
@@ -9,12 +8,6 @@ const register = async (req, res) => {
   try {
     const { email, password, full_name } = req.body;
     if (!email || !password) return res.status(400).json({ message: 'Email and password required' });
-
-    const { rows: otpRows } = await pool.query(
-      'SELECT id FROM otp_verifications WHERE email = $1 AND verified = true',
-      [email.toLowerCase()]
-    );
-    if (!otpRows.length) return res.status(403).json({ message: 'Email not verified. Please verify OTP first.' });
 
     const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email.toLowerCase()]);
     if (existing.rows.length) return res.status(409).json({ message: 'Email already registered' });
@@ -43,7 +36,7 @@ const register = async (req, res) => {
 
 const login = async (req, res) => {
   try {
-    const { email, password, rememberDevice, deviceToken } = req.body;
+    const { email, password } = req.body;
     if (!email || !password) return res.status(400).json({ message: 'Email and password required' });
 
     const { rows } = await pool.query('SELECT * FROM users WHERE email = $1', [email.toLowerCase()]);
@@ -51,37 +44,13 @@ const login = async (req, res) => {
 
     if (!user) return res.status(401).json({ message: 'Invalid credentials' });
     if (!user.is_active) return res.status(403).json({ message: 'Account deactivated' });
-
-    // Allow bypass if trusted device token matches
-    const isTrustedDevice = deviceToken
-      ? (await pool.query(
-          'SELECT id FROM trusted_devices WHERE user_id = $1 AND device_token = $2',
-          [user.id, deviceToken]
-        )).rows.length > 0
-      : false;
-
-    if (!isTrustedDevice && !(await bcrypt.compare(password, user.password_hash)))
+    if (!(await bcrypt.compare(password, user.password_hash)))
       return res.status(401).json({ message: 'Invalid credentials' });
 
     log(user.id, 'login', 'user', user.id, null, req.ip);
 
-    let newDeviceToken = null;
-    if (rememberDevice && !isTrustedDevice) {
-      newDeviceToken = crypto.randomBytes(32).toString('hex');
-      await pool.query(
-        'INSERT INTO trusted_devices (user_id, device_token, user_agent, ip_address) VALUES ($1, $2, $3, $4)',
-        [user.id, newDeviceToken, req.headers['user-agent'] || null, req.ip]
-      );
-    } else if (isTrustedDevice) {
-      await pool.query(
-        'UPDATE trusted_devices SET last_used_at = NOW() WHERE user_id = $1 AND device_token = $2',
-        [user.id, deviceToken]
-      );
-      newDeviceToken = deviceToken;
-    }
-
     const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, { expiresIn: '7d' });
-    res.json({ token, deviceToken: newDeviceToken });
+    res.json({ token });
   } catch (err) {
     res.status(500).json({ message: 'Server error' });
   }
