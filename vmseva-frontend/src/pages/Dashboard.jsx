@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Navbar } from '../components/Navbar';
 import { usersAPI } from '../api';
 import api from '../api';
 
-const PAGE_SIZE = 6;
+const PAGE_SIZE = 10;
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -23,35 +23,37 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!isAdmin) return;
-    usersAPI.getAll().then(r => setUsers(r.data));
-    api.get('/admin/roles').then(r => setAllRoles(r.data));
-    api.get('/admin/audit-logs').then(r => setLogs(r.data)).catch(() => {});
+    // Load everything in parallel, pre-load all user roles to avoid per-click lag
+    Promise.all([
+      usersAPI.getAll(),
+      api.get('/admin/roles'),
+      api.get('/admin/audit-logs').catch(() => ({ data: [] })),
+    ]).then(async ([usersRes, rolesRes, logsRes]) => {
+      setUsers(usersRes.data);
+      setAllRoles(rolesRes.data);
+      setLogs(logsRes.data);
+      // Pre-fetch roles for all users at once
+      const roleMap = {};
+      await Promise.all(usersRes.data.map(async u => {
+        const { data } = await usersAPI.getRoles(u.id);
+        roleMap[u.id] = data;
+      }));
+      setUserRoles(roleMap);
+    });
   }, [isAdmin]);
 
-  const flash = (text, ok = true) => {
+  const flash = useCallback((text, ok = true) => {
     setMsg({ text, ok });
     setTimeout(() => setMsg({ text: '', ok: true }), 2500);
-  };
-
-  const loadRoles = async (id) => {
-    const { data } = await usersAPI.getRoles(id);
-    setUserRoles(prev => ({ ...prev, [id]: data }));
-    return data;
-  };
-
-  const toggleExpand = async (id) => {
-    if (expandedId === id) { setExpandedId(null); return; }
-    setExpandedId(id);
-    if (!userRoles[id]) await loadRoles(id);
-  };
+  }, []);
 
   const toggleRole = async (userId, role) => {
-    const assigned = userRoles[userId] || [];
-    const has = assigned.some(r => r.id === role.id);
+    const has = (userRoles[userId] || []).some(r => r.id === role.id);
     try {
       if (has) await usersAPI.removeRole(userId, role.id);
       else await usersAPI.assignRole(userId, role.id);
-      await loadRoles(userId);
+      const { data } = await usersAPI.getRoles(userId);
+      setUserRoles(prev => ({ ...prev, [userId]: data }));
       flash(has ? `Removed "${role.name}"` : `Assigned "${role.name}"`);
     } catch (err) {
       flash(err.response?.data?.message || 'Error', false);
@@ -71,14 +73,23 @@ export default function Dashboard() {
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-
   const totalLogPages = Math.ceil(logs.length / PAGE_SIZE);
   const paginatedLogs = logs.slice((logPage - 1) * PAGE_SIZE, logPage * PAGE_SIZE);
 
-  const handleSearch = (v) => { setSearch(v); setPage(1); };
-
   return (
     <>
+      <style>{`
+        .row-hover:hover { background: rgba(255,255,255,0.03) !important; }
+        .role-chip { transition: background 0.15s, border-color 0.15s, transform 0.1s; }
+        .role-chip:hover { transform: scale(1.04); }
+        .action-btn { transition: background 0.15s, color 0.15s, border-color 0.15s; }
+        .action-btn:hover { border-color: #555 !important; color: #fff !important; }
+        .expand-row { animation: fadeIn 0.15s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+        .tab-btn { transition: background 0.15s, color 0.15s; }
+        .page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+      `}</style>
+
       <Navbar />
       <div style={s.page}>
 
@@ -132,79 +143,107 @@ export default function Dashboard() {
 
             {/* Tabs */}
             <div style={s.tabs}>
-              <button style={{ ...s.tab, ...(tab === 'users' ? s.tabActive : {}) }} onClick={() => setTab('users')}>Users</button>
-              <button style={{ ...s.tab, ...(tab === 'logs' ? s.tabActive : {}) }} onClick={() => setTab('logs')}>Audit Logs</button>
+              {['users', 'logs'].map(t => (
+                <button key={t} className="tab-btn"
+                  style={{ ...s.tab, ...(tab === t ? s.tabActive : {}) }}
+                  onClick={() => setTab(t)}>
+                  {t === 'users' ? 'Users' : 'Audit Logs'}
+                </button>
+              ))}
             </div>
 
-            {/* Users Grid */}
+            {/* Users Sheet */}
             {tab === 'users' && (
               <div style={s.card}>
                 <div style={s.cardHeader}>
                   <div style={s.cardLabel}>All Users ({filtered.length})</div>
                   <input style={s.search} placeholder="Search name or email..."
-                    value={search} onChange={e => handleSearch(e.target.value)} />
+                    value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
                 </div>
 
-                <div style={s.grid}>
-                  {paginated.map(u => {
+                {/* Table */}
+                <div style={s.table}>
+                  {/* Header */}
+                  <div style={s.thead}>
+                    <div style={{ ...s.th, width: 40 }}>#</div>
+                    <div style={{ ...s.th, flex: 1.2 }}>Name</div>
+                    <div style={{ ...s.th, flex: 2 }}>Email</div>
+                    <div style={{ ...s.th, flex: 2 }}>Roles</div>
+                    <div style={{ ...s.th, width: 80 }}>Status</div>
+                    <div style={{ ...s.th, width: 160, textAlign: 'right' }}>Actions</div>
+                  </div>
+
+                  {/* Rows */}
+                  {paginated.map((u, idx) => {
                     const isMe = u.id === user?.id;
                     const expanded = expandedId === u.id;
                     const roles = userRoles[u.id] || [];
                     return (
-                      <div key={u.id} style={{ ...s.userCard, borderColor: expanded ? '#6c63ff66' : 'var(--border)' }}>
-                        <div style={s.userCardTop}>
-                          <div style={s.uAvatar}>{(u.full_name || u.email)[0].toUpperCase()}</div>
-                          <span style={{ ...s.statusPill, background: u.is_active ? '#00cc6618' : '#ff444418', color: u.is_active ? '#00cc66' : '#ff4444' }}>
-                            {u.is_active ? 'Active' : 'Inactive'}
-                          </span>
-                        </div>
-                        <div style={s.uName}>
-                          {u.full_name || '—'}
-                          {isMe && <span style={s.youBadge}>You</span>}
-                        </div>
-                        <div style={s.uEmail}>{u.email}</div>
-
-                        {/* Assigned roles always visible */}
-                        <div style={s.roleRow}>
-                          {roles.length
-                            ? roles.map(r => <span key={r.id} style={s.roleBadge}>{r.name}</span>)
-                            : <span style={s.muted}>No roles</span>}
-                        </div>
-
-                        {/* Role assignment panel */}
-                        {expanded && (
-                          <div style={s.rolePanel}>
-                            <div style={s.rolePanelLabel}>Click to assign / remove</div>
-                            <div style={s.roleBtnGrid}>
-                              {allRoles.map(role => {
-                                const has = roles.some(r => r.id === role.id);
-                                return (
-                                  <button key={role.id} onClick={() => toggleRole(u.id, role)}
-                                    style={{ ...s.roleBtn, background: has ? '#6c63ff' : 'var(--surface)', border: `1px solid ${has ? '#6c63ff' : 'var(--border)'}` }}>
-                                    {has ? '✓ ' : '+ '}{role.name}
-                                  </button>
-                                );
-                              })}
+                      <div key={u.id}>
+                        <div className="row-hover" style={{ ...s.trow, background: expanded ? 'rgba(108,99,255,0.06)' : 'transparent' }}>
+                          <div style={{ ...s.td, width: 40, color: 'var(--text-muted)', fontSize: 11 }}>
+                            {(page - 1) * PAGE_SIZE + idx + 1}
+                          </div>
+                          <div style={{ ...s.td, flex: 1.2 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <div style={s.uAvatar}>{(u.full_name || u.email)[0].toUpperCase()}</div>
+                              <span style={{ fontSize: 13, fontWeight: 500 }}>
+                                {u.full_name || '—'}
+                                {isMe && <span style={s.youBadge}>You</span>}
+                              </span>
                             </div>
                           </div>
-                        )}
+                          <div style={{ ...s.td, flex: 2, fontSize: 12, color: 'var(--text-secondary)' }}>{u.email}</div>
+                          <div style={{ ...s.td, flex: 2 }}>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                              {roles.length
+                                ? roles.map(r => <span key={r.id} style={s.roleBadge}>{r.name}</span>)
+                                : <span style={s.muted}>—</span>}
+                            </div>
+                          </div>
+                          <div style={{ ...s.td, width: 80 }}>
+                            <span style={{ ...s.statusPill, background: u.is_active ? '#00cc6618' : '#ff444418', color: u.is_active ? '#00cc66' : '#ff4444' }}>
+                              {u.is_active ? 'Active' : 'Inactive'}
+                            </span>
+                          </div>
+                          <div style={{ ...s.td, width: 160, display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                            {!isMe && (
+                              <>
+                                <button className="action-btn" style={s.actionBtn} onClick={() => toggleStatus(u.id)}>
+                                  {u.is_active ? 'Deactivate' : 'Activate'}
+                                </button>
+                                <button className="action-btn"
+                                  style={{ ...s.actionBtn, background: expanded ? '#6c63ff' : 'transparent', color: expanded ? '#fff' : 'var(--text-secondary)', borderColor: expanded ? '#6c63ff' : 'var(--border)' }}
+                                  onClick={() => setExpandedId(expanded ? null : u.id)}>
+                                  Roles
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
 
-                        {!isMe && (
-                          <div style={s.cardActions}>
-                            <button style={s.actionBtn} onClick={() => toggleStatus(u.id)}>
-                              {u.is_active ? 'Deactivate' : 'Activate'}
-                            </button>
-                            <button style={{ ...s.actionBtn, background: expanded ? '#6c63ff' : 'var(--surface)', color: expanded ? '#fff' : 'var(--text)', borderColor: expanded ? '#6c63ff' : 'var(--border)' }}
-                              onClick={() => toggleExpand(u.id)}>
-                              {expanded ? 'Done' : 'Manage Roles'}
-                            </button>
+                        {/* Expanded role row */}
+                        {expanded && (
+                          <div className="expand-row" style={s.expandRow}>
+                            <span style={{ fontSize: 11, color: 'var(--text-muted)', marginRight: 10 }}>Assign / remove:</span>
+                            {allRoles.map(role => {
+                              const has = roles.some(r => r.id === role.id);
+                              return (
+                                <button key={role.id} className="role-chip"
+                                  style={{ ...s.roleChip, background: has ? '#6c63ff' : 'var(--surface2)', border: `1px solid ${has ? '#6c63ff' : 'var(--border)'}`, color: has ? '#fff' : 'var(--text-secondary)' }}
+                                  onClick={() => toggleRole(u.id, role)}>
+                                  {has ? '✓ ' : '+ '}{role.name}
+                                </button>
+                              );
+                            })}
                           </div>
                         )}
                       </div>
                     );
                   })}
+
                   {paginated.length === 0 && (
-                    <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '32px 0', color: 'var(--text-muted)', fontSize: 14 }}>
+                    <div style={{ padding: '32px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
                       No users found
                     </div>
                   )}
@@ -213,11 +252,11 @@ export default function Dashboard() {
                 {/* Pagination */}
                 {totalPages > 1 && (
                   <div style={s.pagination}>
-                    <button style={s.pageBtn} disabled={page === 1} onClick={() => setPage(p => p - 1)}>← Prev</button>
+                    <button className="page-btn" style={s.pageBtn} disabled={page === 1} onClick={() => setPage(p => p - 1)}>← Prev</button>
                     {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
-                      <button key={p} style={{ ...s.pageBtn, ...(page === p ? s.pageBtnActive : {}) }} onClick={() => setPage(p)}>{p}</button>
+                      <button key={p} className="page-btn" style={{ ...s.pageBtn, ...(page === p ? s.pageBtnActive : {}) }} onClick={() => setPage(p)}>{p}</button>
                     ))}
-                    <button style={s.pageBtn} disabled={page === totalPages} onClick={() => setPage(p => p + 1)}>Next →</button>
+                    <button className="page-btn" style={s.pageBtn} disabled={page === totalPages} onClick={() => setPage(p => p + 1)}>Next →</button>
                   </div>
                 )}
               </div>
@@ -227,24 +266,32 @@ export default function Dashboard() {
             {tab === 'logs' && (
               <div style={s.card}>
                 <div style={s.cardLabel}>Audit Logs</div>
-                <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  {paginatedLogs.length === 0 && <div style={{ ...s.muted, padding: '20px 0', textAlign: 'center' }}>No logs yet</div>}
+                <div style={s.table}>
+                  <div style={s.thead}>
+                    <div style={{ ...s.th, flex: 1.5 }}>Action</div>
+                    <div style={{ ...s.th, flex: 2 }}>Performed By</div>
+                    <div style={{ ...s.th, flex: 1.5 }}>IP Address</div>
+                    <div style={{ ...s.th, flex: 2 }}>Time</div>
+                  </div>
                   {paginatedLogs.map(l => (
-                    <div key={l.id} style={s.logRow}>
-                      <span style={s.logAction}>{l.action}</span>
-                      <span style={s.logBy}>{l.performed_by || 'system'}</span>
-                      <span style={s.logMeta}>{l.ip_address}</span>
-                      <span style={s.logTime}>{new Date(l.created_at).toLocaleString()}</span>
+                    <div key={l.id} className="row-hover" style={s.trow}>
+                      <div style={{ ...s.td, flex: 1.5 }}><span style={s.logAction}>{l.action}</span></div>
+                      <div style={{ ...s.td, flex: 2, fontSize: 12, color: 'var(--text-secondary)' }}>{l.performed_by || 'system'}</div>
+                      <div style={{ ...s.td, flex: 1.5, fontSize: 11, color: 'var(--text-muted)', fontFamily: 'monospace' }}>{l.ip_address}</div>
+                      <div style={{ ...s.td, flex: 2, fontSize: 11, color: 'var(--text-muted)' }}>{new Date(l.created_at).toLocaleString()}</div>
                     </div>
                   ))}
+                  {paginatedLogs.length === 0 && (
+                    <div style={{ padding: '32px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>No logs yet</div>
+                  )}
                 </div>
                 {totalLogPages > 1 && (
                   <div style={s.pagination}>
-                    <button style={s.pageBtn} disabled={logPage === 1} onClick={() => setLogPage(p => p - 1)}>← Prev</button>
+                    <button className="page-btn" style={s.pageBtn} disabled={logPage === 1} onClick={() => setLogPage(p => p - 1)}>← Prev</button>
                     {Array.from({ length: totalLogPages }, (_, i) => i + 1).map(p => (
-                      <button key={p} style={{ ...s.pageBtn, ...(logPage === p ? s.pageBtnActive : {}) }} onClick={() => setLogPage(p)}>{p}</button>
+                      <button key={p} className="page-btn" style={{ ...s.pageBtn, ...(logPage === p ? s.pageBtnActive : {}) }} onClick={() => setLogPage(p)}>{p}</button>
                     ))}
-                    <button style={s.pageBtn} disabled={logPage === totalLogPages} onClick={() => setLogPage(p => p + 1)}>Next →</button>
+                    <button className="page-btn" style={s.pageBtn} disabled={logPage === totalLogPages} onClick={() => setLogPage(p => p + 1)}>Next →</button>
                   </div>
                 )}
               </div>
@@ -277,28 +324,20 @@ const s = {
   cardHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   cardLabel: { fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' },
   search: { padding: '7px 14px', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 7, color: 'var(--text)', fontSize: 13, outline: 'none', width: 220 },
-  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 },
-  userCard: { background: 'var(--surface2)', border: '1px solid', borderRadius: 12, padding: '16px', transition: 'border-color 0.2s', display: 'flex', flexDirection: 'column', gap: 8 },
-  userCardTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-  uAvatar: { width: 40, height: 40, borderRadius: '50%', background: 'var(--surface)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700 },
-  statusPill: { fontSize: 11, padding: '3px 10px', borderRadius: 20, fontWeight: 600 },
-  uName: { fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 },
-  uEmail: { fontSize: 12, color: 'var(--text-secondary)' },
-  youBadge: { fontSize: 10, background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)', padding: '1px 6px', borderRadius: 20 },
-  roleRow: { display: 'flex', flexWrap: 'wrap', gap: 5, minHeight: 22 },
-  roleBadge: { fontSize: 11, background: '#6c63ff22', color: '#a09cf7', border: '1px solid #6c63ff33', padding: '2px 8px', borderRadius: 10 },
-  rolePanel: { paddingTop: 10, borderTop: '1px solid var(--border)' },
-  rolePanelLabel: { fontSize: 11, color: 'var(--text-muted)', marginBottom: 8 },
-  roleBtnGrid: { display: 'flex', flexWrap: 'wrap', gap: 6 },
-  roleBtn: { fontSize: 11, padding: '4px 10px', color: '#fff', borderRadius: 6, cursor: 'pointer', transition: 'background 0.15s' },
-  cardActions: { display: 'flex', gap: 6, marginTop: 4 },
-  actionBtn: { flex: 1, fontSize: 11, padding: '6px 10px', background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 6, cursor: 'pointer' },
+  table: { width: '100%' },
+  thead: { display: 'flex', alignItems: 'center', padding: '8px 12px', borderBottom: '1px solid var(--border)', marginBottom: 4 },
+  th: { fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' },
+  trow: { display: 'flex', alignItems: 'center', padding: '10px 12px', borderRadius: 8, transition: 'background 0.15s' },
+  td: { fontSize: 13, paddingRight: 12 },
+  uAvatar: { width: 30, height: 30, borderRadius: '50%', background: 'var(--surface2)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, flexShrink: 0 },
+  youBadge: { fontSize: 10, background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text-muted)', padding: '1px 6px', borderRadius: 20, marginLeft: 6 },
+  roleBadge: { fontSize: 11, background: '#6c63ff18', color: '#a09cf7', border: '1px solid #6c63ff33', padding: '2px 7px', borderRadius: 10 },
+  statusPill: { fontSize: 11, padding: '2px 8px', borderRadius: 20, fontWeight: 600 },
+  actionBtn: { fontSize: 11, padding: '4px 10px', background: 'transparent', color: 'var(--text-secondary)', border: '1px solid var(--border)', borderRadius: 6, cursor: 'pointer' },
+  expandRow: { display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6, padding: '10px 12px 12px 90px', borderBottom: '1px solid var(--border)', marginBottom: 2 },
+  roleChip: { fontSize: 11, padding: '4px 10px', borderRadius: 6, cursor: 'pointer' },
+  logAction: { fontSize: 11, fontWeight: 500, background: 'var(--surface2)', border: '1px solid var(--border)', padding: '2px 8px', borderRadius: 5 },
   pagination: { display: 'flex', justifyContent: 'center', gap: 6, marginTop: 20, flexWrap: 'wrap' },
   pageBtn: { padding: '6px 12px', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text-secondary)', fontSize: 12, cursor: 'pointer' },
   pageBtnActive: { background: '#6c63ff', color: '#fff', borderColor: '#6c63ff' },
-  logRow: { display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', borderRadius: 7, background: 'var(--surface2)' },
-  logAction: { fontSize: 12, fontWeight: 500, background: 'var(--surface)', border: '1px solid var(--border)', padding: '2px 8px', borderRadius: 5, flexShrink: 0 },
-  logBy: { fontSize: 12, color: 'var(--text-secondary)', flex: 1 },
-  logMeta: { fontSize: 11, color: 'var(--text-muted)', fontFamily: 'monospace' },
-  logTime: { fontSize: 11, color: 'var(--text-muted)', flexShrink: 0 },
 };
