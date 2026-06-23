@@ -43,6 +43,44 @@ app.use(express.urlencoded({ extended: true }));
 
 app.get('/', (req, res) => res.json({ message: 'Voice Management API' }));
 
+app.get('/debug', async (req, res) => {
+    const { Pool } = require('pg');
+    const nodemailer = require('nodemailer');
+
+    // DB check
+    let dbStatus = 'ok';
+    let dbError = null;
+    try {
+        const pool = require('./config/db');
+        await pool.query('SELECT NOW()');
+    } catch (e) {
+        dbStatus = 'error';
+        dbError = e.message;
+    }
+
+    // Mailer check
+    let mailerStatus = 'ok';
+    let mailerError = null;
+    try {
+        const t = nodemailer.createTransport({
+            host: 'smtp.gmail.com', port: 587, secure: false,
+            auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+            tls: { rejectUnauthorized: false }
+        });
+        await t.verify();
+    } catch (e) {
+        mailerStatus = 'error';
+        mailerError = e.message;
+    }
+
+    res.json({
+        db: { status: dbStatus, error: dbError },
+        mailer: { status: mailerStatus, error: mailerError },
+        jwt: { secret_set: !!process.env.JWT_SECRET, length: process.env.JWT_SECRET?.length },
+        env: { NODE_ENV: process.env.NODE_ENV, SMTP_USER: process.env.SMTP_USER }
+    });
+});
+
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/admin', adminRoutes);
