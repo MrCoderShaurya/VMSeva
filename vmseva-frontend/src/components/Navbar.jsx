@@ -1,26 +1,30 @@
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export const Navbar = () => {
   const { user, logout, hasRole } = useAuth();
+  const loc = useLocation();
+  const active = (path) => loc.pathname === path;
+
   return (
-    <nav style={styles.nav}>
-      <span style={styles.brand}>VMSeva</span>
-      <div style={styles.links}>
-        <Link to="/dashboard" style={styles.link}>Dashboard</Link>
-        {hasRole('Admin') && <Link to="/users" style={styles.link}>Users</Link>}
-        {hasRole('Admin') && <Link to="/admin" style={styles.link}>Admin</Link>}
-        <Link to="/profile" style={styles.link}>Profile</Link>
-        <button onClick={logout} style={styles.btn}>Logout</button>
+    <nav style={s.nav}>
+      <span style={s.brand}>VMSeva</span>
+      <div style={s.links}>
+        <Link to="/dashboard" style={{ ...s.link, ...(active('/dashboard') ? s.activeLink : {}) }}>Dashboard</Link>
+        {hasRole('Admin') && <Link to="/users" style={{ ...s.link, ...(active('/users') ? s.activeLink : {}) }}>Users</Link>}
+        {hasRole('Admin') && <Link to="/admin" style={{ ...s.link, ...(active('/admin') ? s.activeLink : {}) }}>Admin</Link>}
+        <Link to="/profile" style={{ ...s.link, ...(active('/profile') ? s.activeLink : {}) }}>Profile</Link>
+        <button onClick={logout} style={s.btn}>Logout</button>
       </div>
     </nav>
   );
 };
 
-const styles = {
-  nav: { display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px 24px', background:'#1a1a2e', color:'#fff' },
-  brand: { fontWeight:'bold', fontSize:'1.2rem', color:'#e94560' },
-  links: { display:'flex', gap:'16px', alignItems:'center' },
-  link: { color:'#eee', textDecoration:'none', fontSize:'0.9rem' },
-  btn: { background:'#e94560', color:'#fff', border:'none', padding:'6px 14px', borderRadius:'4px', cursor:'pointer' },
+const s = {
+  nav: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 28px', background: 'var(--surface)', borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, zIndex: 100 },
+  brand: { fontWeight: 700, fontSize: 18, color: 'var(--text)', letterSpacing: '-0.5px' },
+  links: { display: 'flex', gap: 4, alignItems: 'center' },
+  link: { color: 'var(--text-secondary)', textDecoration: 'none', fontSize: 13, padding: '6px 12px', borderRadius: 6, transition: 'color 0.2s, background 0.2s' },
+  activeLink: { color: 'var(--text)', background: 'var(--surface2)' },
+  btn: { background: 'transparent', color: 'var(--text-secondary)', border: '1px solid var(--border)', padding: '6px 14px', borderRadius: 6, cursor: 'pointer', fontSize: 13, marginLeft: 4, transition: 'border-color 0.2s, color 0.2s' },
 };
