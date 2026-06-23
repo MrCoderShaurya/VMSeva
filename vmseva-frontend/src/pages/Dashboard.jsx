@@ -15,14 +15,14 @@ export default function Dashboard() {
   const [search, setSearch] = useState('');
   const [tab, setTab] = useState('users');
 
-  const isAdmin = hasRole('Admin');
+  const isAdmin = user?.roles?.some(r => r.name === 'Admin');
 
   useEffect(() => {
     if (!isAdmin) return;
     usersAPI.getAll().then(r => setUsers(r.data));
     api.get('/admin/roles').then(r => setAllRoles(r.data));
     api.get('/admin/audit-logs').then(r => setLogs(r.data)).catch(() => {});
-  }, [user]);
+  }, [isAdmin]);
 
   const flash = (text, ok = true) => {
     setMsg({ text, ok });
