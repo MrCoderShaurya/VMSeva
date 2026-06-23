@@ -7,16 +7,14 @@ const log = require('../config/audit');
 
 const register = async (req, res) => {
   try {
-    const { email, password, full_name, verified_token } = req.body;
+    const { email, password, full_name } = req.body;
     if (!email || !password) return res.status(400).json({ message: 'Email and password required' });
-    if (!verified_token) return res.status(403).json({ message: 'Email not verified. Please verify OTP first.' });
 
-    // Validate the verified_token
     const { rows: otpRows } = await pool.query(
-      'SELECT id FROM otp_verifications WHERE email = $1 AND otp = $2 AND verified = true AND expires_at > NOW()',
-      [email.toLowerCase(), verified_token]
+      'SELECT id FROM otp_verifications WHERE email = $1 AND verified = true',
+      [email.toLowerCase()]
     );
-    if (!otpRows.length) return res.status(403).json({ message: 'Invalid or expired verification. Please restart.' });
+    if (!otpRows.length) return res.status(403).json({ message: 'Email not verified. Please verify OTP first.' });
 
     const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email.toLowerCase()]);
     if (existing.rows.length) return res.status(409).json({ message: 'Email already registered' });

@@ -82,20 +82,15 @@ const verifyOTP = async (req, res) => {
       return res.json({ message: 'OTP verified', reset_token: sessionToken });
     }
 
-    // register type — verify OTP and mark as verified
+    // register type
     const { rows } = await pool.query(
       'SELECT id FROM otp_verifications WHERE email = $1 AND otp = $2 AND expires_at > NOW()',
       [email.toLowerCase(), otp]
     );
     if (!rows.length) return res.status(400).json({ message: 'Invalid or expired OTP' });
 
-    // Generate a short-lived verified token to pass to /register
-    const verifiedToken = crypto.randomBytes(24).toString('hex');
-    await pool.query(
-      'UPDATE otp_verifications SET verified = true, otp = $1 WHERE id = $2',
-      [verifiedToken, rows[0].id]
-    );
-    return res.json({ message: 'OTP verified', verified_token: verifiedToken });
+    await pool.query('UPDATE otp_verifications SET verified = true WHERE id = $1', [rows[0].id]);
+    return res.json({ message: 'OTP verified' });
   } catch (err) {
     console.error('verifyOTP error:', err.message);
     res.status(500).json({ message: err.message });

@@ -74,7 +74,6 @@ export default function Register() {
     setLoading(true);
     try {
       const { data } = await authAPI.verifyOTP({ email, otp: otp.join(''), type: 'register' });
-      setVerifiedToken(data.verified_token);
       setStep(3);
     } catch (err) {
       setError(err.response?.data?.message || 'Invalid OTP');
@@ -90,7 +89,7 @@ export default function Register() {
     setError('');
     setLoading(true);
     try {
-      await authAPI.register({ email, password, full_name: fullName, verified_token: verifiedToken });
+      await authAPI.register({ email, password, full_name: fullName });
       navigate('/login', { state: { registered: true } });
     } catch (err) {
       setError(err.response?.data?.message || 'Registration failed');
