@@ -35,11 +35,13 @@ const sendOTP = async (req, res) => {
       );
     }
 
-    try {
-      await sendMail({
-        to: email.toLowerCase(),
-        subject: 'VMSeva — Your OTP Code',
-        html: `
+    // Respond immediately, send mail in background
+    res.json({ message: 'OTP sent successfully' });
+
+    sendMail({
+      to: email.toLowerCase(),
+      subject: 'VMSeva — Your OTP Code',
+      html: `
           <div style="font-family:sans-serif;max-width:420px;margin:0 auto;padding:32px;background:#000;border-radius:12px">
             <h2 style="color:#fff;margin-bottom:8px">VMSeva</h2>
             <p style="color:#aaa;margin-bottom:24px">
@@ -52,12 +54,7 @@ const sendOTP = async (req, res) => {
             <p style="color:#666;font-size:12px;margin-top:16px">Expires in 10 minutes. Do not share this code.</p>
           </div>
         `,
-      });
-      res.json({ message: 'OTP sent successfully' });
-    } catch (mailErr) {
-      console.error('Mail error:', mailErr.message);
-      res.status(500).json({ message: 'Failed to send OTP email. Check mail configuration.' });
-    }
+    }).catch(err => console.error('Mail error:', err.message));
   } catch (err) {
     console.error('sendOTP error:', err.message);
     res.status(500).json({ message: err.message });
