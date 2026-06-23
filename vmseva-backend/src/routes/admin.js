@@ -7,6 +7,13 @@ router.get('/test', verifyToken, requireAdmin, (req, res) => {
   res.json({ message: 'Admin access confirmed', user: req.user });
 });
 
+router.get('/roles', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT id, name FROM roles ORDER BY id');
+    res.json(rows);
+  } catch { res.status(500).json({ message: 'Server error' }); }
+});
+
 router.get('/audit-logs', verifyToken, requireAdmin, async (req, res) => {
   try {
     const { rows } = await pool.query(`
