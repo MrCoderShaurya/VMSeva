@@ -4,7 +4,7 @@ const log = require('../config/audit');
 const getUsers = async (req, res) => {
   try {
     const { rows } = await pool.query(
-      'SELECT id, email, full_name, is_active, created_at FROM users ORDER BY id'
+      'SELECT id, email, full_name, is_active, created_at, module FROM users ORDER BY id'
     );
     res.json(rows);
   } catch { res.status(500).json({ message: 'Server error' }); }
@@ -13,7 +13,7 @@ const getUsers = async (req, res) => {
 const getUserById = async (req, res) => {
   try {
     const { rows } = await pool.query(
-      'SELECT id, email, full_name, is_active, created_at FROM users WHERE id = $1',
+      'SELECT id, email, full_name, is_active, created_at, module FROM users WHERE id = $1',
       [req.params.id]
     );
     if (!rows.length) return res.status(404).json({ message: 'User not found' });
@@ -33,7 +33,7 @@ const updateUser = async (req, res) => {
     const { full_name, email } = req.body;
     const { rows } = await pool.query(
       `UPDATE users SET full_name = COALESCE($1, full_name), email = COALESCE($2, email)
-       WHERE id = $3 RETURNING id, email, full_name`,
+       WHERE id = $3 RETURNING id, email, full_name, module`,
       [full_name, email?.toLowerCase(), req.params.id]
     );
     if (!rows.length) return res.status(404).json({ message: 'User not found' });
@@ -93,4 +93,17 @@ const removeRole = async (req, res) => {
   } catch { res.status(500).json({ message: 'Server error' }); }
 };
 
-module.exports = { getUsers, getUserById, updateUser, toggleStatus, assignRole, getUserRoles, removeRole };
+const assignModule = async (req, res) => {
+  try {
+    const { module } = req.body; // module can be string name or null
+    const { rows } = await pool.query(
+      'UPDATE users SET module = $1 WHERE id = $2 RETURNING id, email, full_name, module',
+      [module, req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ message: 'User not found' });
+    log(req.user.id, 'assign_module', 'user', Number(req.params.id), { module }, req.ip);
+    res.json(rows[0]);
+  } catch { res.status(500).json({ message: 'Server error' }); }
+};
+
+module.exports = { getUsers, getUserById, updateUser, toggleStatus, assignRole, getUserRoles, removeRole, assignModule };

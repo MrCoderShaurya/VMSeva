@@ -15,7 +15,8 @@ const createTables = async () => {
   await pool.query(`
     ALTER TABLE users
       ADD COLUMN IF NOT EXISTS full_name VARCHAR(255),
-      ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true
+      ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true,
+      ADD COLUMN IF NOT EXISTS module VARCHAR(255)
   `).catch(() => {});
 
   await pool.query(`
@@ -24,6 +25,22 @@ const createTables = async () => {
       name VARCHAR(100) UNIQUE NOT NULL
     )
   `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS modules (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(255) UNIQUE NOT NULL,
+      description TEXT,
+      active BOOLEAN DEFAULT true,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+
+  await pool.query(`
+    ALTER TABLE modules
+      ADD COLUMN IF NOT EXISTS description TEXT,
+      ADD COLUMN IF NOT EXISTS active BOOLEAN DEFAULT true
+  `).catch(() => {});
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS user_roles (
@@ -68,7 +85,9 @@ const createTables = async () => {
       ('Internal Manager'),
       ('Counselor'),
       ('Incharge'),
-      ('Assistant')
+      ('Assistant'),
+      ('Mentor'),
+      ('Frontliner')
     ON CONFLICT (name) DO NOTHING
   `);
 

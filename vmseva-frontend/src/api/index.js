@@ -26,6 +26,14 @@ export const usersAPI = {
   getRoles: (id) => api.get(`/users/${id}/roles`),
   assignRole: (id, role_id) => api.post(`/users/${id}/roles`, { role_id }),
   removeRole: (id, roleId) => api.delete(`/users/${id}/roles/${roleId}`),
+  assignModule: (id, module) => api.put(`/users/${id}/module`, { module }),
+};
+
+export const modulesAPI = {
+  getAll: () => api.get('/admin/modules'),
+  create: (data) => api.post('/admin/modules', data),
+  toggleStatus: (id) => api.patch(`/admin/modules/${id}/status`),
+  delete: (id) => api.delete(`/admin/modules/${id}`),
 };
 
 export default api;

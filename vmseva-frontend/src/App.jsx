@@ -10,6 +10,7 @@ import Users from './pages/Users';
 import UserRoles from './pages/UserRoles';
 import Profile from './pages/Profile';
 import AdminDashboard from './pages/AdminDashboard';
+import Preaching from './pages/Preaching';
 
 export default function App() {
   return (
@@ -25,6 +26,7 @@ export default function App() {
           <Route path="/users" element={<ProtectedRoute role="Admin"><Users /></ProtectedRoute>} />
           <Route path="/users/:id/roles" element={<ProtectedRoute role="Admin"><UserRoles /></ProtectedRoute>} />
           <Route path="/admin" element={<ProtectedRoute role="Admin"><AdminDashboard /></ProtectedRoute>} />
+          <Route path="/preaching" element={<ProtectedRoute><Preaching /></ProtectedRoute>} />
           <Route path="*" element={<Navigate to="/dashboard" />} />
         </Routes>
       </BrowserRouter>

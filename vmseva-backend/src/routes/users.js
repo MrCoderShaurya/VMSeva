@@ -3,7 +3,7 @@ const verifyToken = require('../middleware/auth');
 const { requireAdmin } = require('../middleware/role');
 const {
   getUsers, getUserById, updateUser, toggleStatus,
-  assignRole, getUserRoles, removeRole
+  assignRole, getUserRoles, removeRole, assignModule
 } = require('../controllers/userController');
 
 router.use(verifyToken, requireAdmin);
@@ -15,5 +15,6 @@ router.patch('/:id/status', toggleStatus);
 router.post('/:id/roles', assignRole);
 router.get('/:id/roles', getUserRoles);
 router.delete('/:id/roles/:roleId', removeRole);
+router.put('/:id/module', assignModule);
 
 module.exports = router;
